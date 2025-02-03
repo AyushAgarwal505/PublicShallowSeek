@@ -1,0 +1,9 @@
+opencv-python
+Pillow
+langchain
+langhchain-community
+os
+python-dotenv
+langchain-groq
+selenium
+undetected-chromedriver
