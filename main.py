@@ -1,31 +1,21 @@
 import os
 from dotenv import load_dotenv
 from groq import Groq  # Import Groq's SDK
-
+from langchain_groq import ChatGroq
+from langchain import LLMChain
+from langchain.prompts import PromptTemplate
+from imagegeneration import generate_image
+import json
+import re
 load_dotenv()
 groq_api_key = os.getenv("GROQ_API_KEY")
 client = Groq(
     api_key= groq_api_key 
 )
 
-def generate_and_save_story(prompt, file_path):
-    try:
-        response = client.chat.completions.create(
-            model="mixtral-8x7b-32768",  
-            messages=[{"role": "user", "content": prompt}],
-            temperature=1.0 #changed the temp from 0.7 to 1.0
-        )
-
-        story_content = response.choices[0].message.content
-
-        with open(file_path, "w", encoding="utf-8") as file:
-            file.write(story_content)
-            
-        print(f"Story successfully saved to {file_path}")
-        return story_content
-
-    except Exception as e:
-        print(f"Error: {str(e)}")
+def extract_json(text):
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    return match.group(0) if match else None
 
 text_input = """ A simple definition of a natural disaster is an adverse event initiated by natural processes, such as a sudden change in the earth’s crust or climate. There are plenty of categories that we can use to distinguish natural disasters, but here are the fundamental three:
 
@@ -65,53 +55,165 @@ Heatwaves and droughts - These are significant periods of excessively hot weathe
 
 Blizzards and hail storms - This is when high winds stir up snow that has already fallen, obstructing travel, medical care, and agriculture. Sometimes precipitation, rain, will freeze while in very cold conditions and remains frozen after hitting the ground."""
 
-'''prompt = f"""Generate a comic book narrative based on the provided educational text. The narrative should be engaging, dramatic, and suitable for kids aged 6-10 years.
+prompt = """
+Write a **fun, dramatic, and engaging comic story** based on the provided text and format it into structured JSON for a comic book layout.  
 
-Guidelines:
-Characters: Use famous superheroes as educators and Dr. Octopus as the antagonist.
-Story Structure:
-First 25-40%: An exciting action sequence where Dr. Octopus causes chaos.
-Last 60-75%: Superheroes step in and teach the educational concept.
-Tone & Style: Fun, action-packed, and kid-friendly.
-Static Scenes: Ensure each moment is static, making it easy to illustrate.
-Dialogues: Only one line of dialogue per character per panel.
-Narrator Use: The narrator will provide an educational explanation at the end of each page."""'''
+Make sure to **incorporate most of the educational content seamlessly into the story** rather than making it feel random or forced.  
 
-alternate_prompt = f"""
-Write a comic story on the above text input provided.
-Make the scenes static so that it is easy to draw the comic. 
-The first few panels will have the buildup to the story and will be unrelated to the educative part.Include Dr octopus as the antagonist.The remaining panels will have the educative part. 
-This comic is supposed to be for kids of the age 6-10 years. Try making the story dramatic and engaging for kids.
-Use famous superheros as the educators. Don't use elements in the text as the characters.
-Spilt the panel as scene: which describes exactly what the character is doing and the character dialogues. Use a narrator wherever required. 
-Try to make the educative part include 60-75% of the content of the text provided.
-Do not give multiple dialogues in the same panel. Make sure the narrator and the dialogue together add up to around 20 words only. Not more. I will be bankrupt if you do so.
-Make sure the story has a happy ending.
-{text_input}"""
+The story can be **3-4 pages long**, ensuring **strong storytelling and a logical buildup to the educational content.**  
 
+---
+
+### **Story Structure Guidelines:**  
+- The story should be **exciting, adventurous, and suitable for kids aged 6-8 years**.  
+- **There is always a villain** who creates a challenge or problem related to the educational content.  
+- **Famous superheroes will act as educators** and help resolve the conflict.  
+- **Ensure a happy ending.**  
+- **Make sure the story and the education content are interconnected.** Avoid random, unrelated lessons.  
+- **Use static, easy-to-draw scenes** for each moment.  
+
+The story is structured into **multiple pages**, with each page containing **exactly 7 panels**:  
+  - **Panels 1-6**: Progress the story through action, conflict, and character interactions (**Max 20 words per dialogue**).  
+  - **Panel 7**: **Dr. Gyaan explains an educational concept** in a fun and engaging way.  
+    - **Dr. Gyaan is a wise character** who educates superheroes and readers.  
+    - **The scene for Dr. Gyaan must always be `null`.**  
+    - **Dr. Gyaan’s dialogue can be up to 60 words, summarizing the educational content.**  
+
+---
+
+### **JSON Output Guidelines:**  
+- **Output must be in valid JSON format.**  
+- **No extra messages, headers, or explanations—only JSON.**  
+- **Each panel must have:**  
+  - `"scene"`: A static description of the moment (**concise and visual**).  
+  - `"dialogue"`:  
+    - `"speaker"`: Name of the character speaking (e.g., `"Spider-Man"`, `"Narrator"`, or `"Dr. Gyaan"` in Panel 7).  
+    - `"text"`: A good, engaging, fitting dialogue (max **20 words**, except for Dr. Gyaan).  
+
+---
+
+### **Important Instructions:**  
+🚫 **Do NOT copy the example below—generate fresh, unique content dynamically from the text provided in the end.**  
+✅ **Ensure every panel logically follows the previous one.**  
+✅ **Narrators should be used only when necessary.**  
+✅ **Villains should have an engaging motivation or challenge.**  
+✅ **Dr. Gyaan must always appear in the final panel of each page.**  
+
+---
+
+### **Expected JSON Output Format (Reference Only – DO NOT COPY)**  
+{
+  "pages": [
+    {
+      "page_number": 1,
+      "panels": [
+        {
+          "panel_number": 1,
+          "scene": "X",
+          "dialogue": { "speaker": "Y", "text": "Z" }
+        },
+        //Continue doing panel 2-5
+        {
+          "panel_number": 7,
+          "scene": null,
+          "dialogue": { "speaker": "Dr. Gyaan", "text": "V" }
+        }
+      ]
+    }
+  ]
+}
+Text to create the comic story based on: 
+
+"""
+text_input2 = "types of rocks on earth and how they're formed."
+prompt1 = prompt + text_input
 response = client.chat.completions.create(
-            model="mixtral-8x7b-32768",  
-            messages=[{"role": "user", "content": alternate_prompt}],
-            temperature=1.0 #changed the temp from 0.7 to 1.0
+            #model="mixtral-8x7b-32768",  
+            model = "llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt1}],
+            temperature=0.95
         )
 
-story_content = response.choices[0].message.content
+output = extract_json(response.choices[0].message.content)
 
-prompt_2=f'''Take the narrative generated from the story and format it into structured JSON for a comic book layout.
+try:
+  json_output=json.loads(output)
+except:
+  json_output=json.loads(output)
+with open('story_output.txt', 'w') as file:
+    file.write(output)
 
-JSON Structure Guidelines:
-Each page has exactly 4 panels.
-Each panel should have:
-"scene": A static description of the moment.
-"dialogue": Character dialogues (one line per character).
-"narrator" : The narrator should be explaining the concept in a fun way relating it with the story. Don't use him unnecessarily.
-Don't add messages to me. Just give the plain json structure output. I dont want anything above and below it.
-Here is the text generated from the previous prompt: {story_content}'''
+image_prompt = '''You are tasked with generating a **detailed comic book scene description** based on the following scene text and context. The goal is to generate a **standard comic book-style image** suitable for the scene in question.
 
-response = client.chat.completions.create(
-            model="llama-3.2-3b-preview",  
-            messages=[{"role": "user", "content": prompt_2}],
-            temperature=0 #changed the temp from 0.7 to 1.0
-        )
+### **Instructions:**
+1. **Context**: You will receive the **scene description** for the current panel in a comic book. Additionally, you will be given the **scene descriptions of previous panels** to provide the necessary context for the ongoing narrative.
+2. **Create a comic book image**: Based on the provided scene description and context, generate a detailed **comic book-style image prompt** for the current panel. The image should be drawn in a **Marvel comic book style** with dynamic, bold imagery and dramatic perspectives. 
+3. **Ensure continuity**: Use the context from previous scenes to maintain **visual consistency**, ensuring characters, actions, and settings follow a logical progression.
+4. **Include visual elements** like lighting, action, character positioning, and the environment. The description should be **detailed** to guide the artist in creating the image.
 
-print(response.choices[0].message.content)
+### **Formatting:**
+- Your response should be in **JSON format** with **two keys**: 
+  - **`scene_description`**: A detailed description of the scene, capturing visual elements, action, lighting, and environment.
+  - **`summary`**: A concise summary of the scene, capturing the essence, context, and mood of the scene.
+
+### **Input Example:**
+
+**Current Scene (Panel 3):**  
+*Spider-Man swings into action to stop a villain who is causing destruction in the city.*
+
+**Previous Scenes:**
+1. *Spider-Man is perched on top of a building, overlooking the city.*
+2. *The villain, Dr. Octopus, unleashes mechanical tentacles to wreak havoc.*
+
+### **Expected Output Example:**
+```json
+{
+  "scene_description": "Spider-Man swings into action, his webbing creating streaks in the air. The city skyline looms in the background as Dr. Octopus’s mechanical tentacles lash out, causing chaos below. The sun is setting, casting long shadows and creating an orange glow. Spider-Man’s suit is vibrant, contrasting against the destruction below. The scene captures the intensity of the battle, with dynamic lines and dramatic shading, characteristic of classic Marvel comic book illustrations.",
+  "summary": "Spider-Man swings into action to stop Dr. Octopus, whose mechanical tentacles are causing chaos in the city. The battle intensifies against a backdrop of the setting sun."
+}
+
+Current scene that you need to create an image prompt for is : 
+'''
+
+first_prompt=PromptTemplate(template=image_prompt)
+llm=ChatGroq(model="llama-3.1-8b-instant",temperature=0.7)
+first_llm_chain=LLMChain(llm=llm,prompt=first_prompt)
+print("done till now")
+
+
+def process_json2(json_output):
+    pages = json_output.get("pages", []) 
+    previous_summary = ""
+    scene_summary_list = [] 
+
+    for page in pages:
+        panels = page.get("panels", []) 
+        panel_no = 1
+
+        for panel in panels:
+            scene_desc = panel.get("scene", None)
+            if scene_desc:
+                prompt_input = "\nCurrent Scene: " + scene_desc + " Previous Scene's Summary: " + previous_summary
+                response = client.chat.completions.create( 
+                              model = "llama-3.3-70b-versatile",
+                              messages=[{"role": "user", "content": image_prompt+prompt_input}],
+                              temperature=0.95
+                            )
+                img_prompt = extract_json(response.choices[0].message.content)
+                img_prompt = extract_json(img_prompt)
+                img_json = json.loads(img_prompt)
+                scene_description = img_json.get('scene_description', 'No description provided')
+                summary = img_json.get('summary', 'No summary provided')
+                scene_summary_list.append({
+                    'scene': scene_description,
+                    'summary': summary
+                })
+                #print(scene_description)
+                generate_image(scene_description, f"page_{page['page_number']}_panel_{panel_no}")
+                previous_summary = summary
+            panel_no += 1
+
+    return scene_summary_list
+
+scenes_summaries = process_json2(json_output)
+print(scenes_summaries)
