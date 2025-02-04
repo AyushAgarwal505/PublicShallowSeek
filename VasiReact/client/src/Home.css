@@ -1,0 +1,12 @@
+.header-text {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Komika';
+    font-size: 6rem;
+    color: rgb(255, 208, 0);
+    margin-left: 13rem;
+    margin-top: 14rem;
+    letter-spacing: 0.1em;
+    text-shadow: 7px 7px 0px #000000, -4px -4px 0px #000000;
+}

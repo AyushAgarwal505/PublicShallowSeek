@@ -1,0 +1,11 @@
+.app-parent {
+    width: 99vw;
+    height: 400vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    background: 
+      url('assets/combined-bg.png');
+    background-size: 100vw;
+  }
+  

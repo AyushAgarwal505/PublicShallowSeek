@@ -1,0 +1,12 @@
+@font-face {
+    font-family: Komika;
+    src: url(assets/komikaaxis.ttf);
+  }
+
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: auto;
+    font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+}
